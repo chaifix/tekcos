@@ -3,6 +3,11 @@
 #pragma comment(lib, "Ws2_32.lib")
 #endif
 
+#ifdef __linux__
+#define INVALID_SOCKET -1
+#define SOCKET_ERROR   -1
+#endif
+
 // error code 
 enum
 {
@@ -67,12 +72,10 @@ enum {
 
 uint32 tk_strtohl(const char* str)
 {
-    struct sockaddr_in inaddr;
-#ifdef _WIN32
-    inet_pton(AF_INET, str, &inaddr.sin_addr.s_addr);
+    struct in_addr inaddr; 
+    inet_pton(AF_INET, str, (void*)&inaddr);
     // host long 
-    return ntohl(inaddr.sin_addr.s_addr);
-#endif
+    return ntohl(inaddr.s_addr);
 }
 
 const char* tk_hltostr(uint32 ip)
@@ -108,7 +111,7 @@ tk_TCPsocket* tk_tcp_open(tk_IPaddress ip)
     if (ip.host != INADDR_NONE && (ip.host != INADDR_ANY))
     { // connet to an existed remote server. 
         addr.sin_addr.s_addr = htonl(ip.host);
-        if (connect(sk->id, &addr, sizeof(addr)) == SOCKET_ERROR)
+        if (connect(sk->id, (const struct sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR)
         {
             state = TK_CONNECTFAILED; 
             goto error;
@@ -118,7 +121,7 @@ tk_TCPsocket* tk_tcp_open(tk_IPaddress ip)
     { // create a listenning server.  
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-        if (bind(sk->id, &addr, sizeof(addr)) == SOCKET_ERROR)
+        if (bind(sk->id, (const struct sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR)
         {
             state = TK_BINDSOCKETFAILED;
             goto error; 
@@ -145,8 +148,12 @@ int tk_tcp_close(tk_TCPsocket* sk)
     {
         if (sk->id == INVALID_SOCKET)
             goto error;
+#ifdef _WIN32
         closesocket(sk->id); 
-        free(sk);
+#else
+	close(sk->id);
+#endif        
+	free(sk);
         return 1;
     }
 error:
@@ -157,7 +164,7 @@ error:
 int tk_tcp_send(tk_TCPsocket* client, const void* buffer, int bsize, int* sent)
 {
     // byte poiter. 
-    const char *data = buffer;
+    const char *data = (const char*)buffer;
     if (client->type != SOCKET_TCLIENT)
     {// only cliednt can send stuff. 
         state = TK_WRONGSOCKETTPYE;
@@ -308,7 +315,7 @@ tk_UDPsocket* tk_udp_open(uint16 portnumber)
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
         addr.sin_port = htons(portnumber);
         addr.sin_family = AF_INET;
-        bind(sk->id, &addr, sizeof(addr));
+        bind(sk->id, (const struct sockaddr*)&addr, sizeof(addr));
         return sk;
     }
 
@@ -324,7 +331,7 @@ int tk_udp_sendto(tk_UDPsocket* sk, tk_UDPpack* pack)
     addr.sin_port = htons(pack->ip.port);
     addr.sin_addr.s_addr = htonl(pack->ip.host);
     int len = sizeof(addr);
-    int n = sendto(sk->id, pack->data, pack->len, 0, &addr, &len);
+    int n = sendto(sk->id, pack->data, pack->len, 0, (const struct sockaddr*)&addr, len);
     if (n < 0)
     {
         state = TK_INVALIDTARGET; 
@@ -339,7 +346,7 @@ int tk_udp_recvfrom(tk_UDPsocket* sk, tk_UDPpack* pack)
     memset(&addr, 0, sizeof(addr));
     int addr_len = sizeof(addr); 
     pack->data = (char*)malloc(2048); 
-    int n = recvfrom(sk->id, pack->data, 2048, 0, &addr, &addr_len);
+    int n = recvfrom(sk->id, pack->data, 2048, 0, (struct sockaddr*)&addr, &addr_len);
     pack->ip.host = ntohl(addr.sin_addr.s_addr);
     pack->ip.port = ntohs(addr.sin_port);
     if (n < 0)
@@ -358,7 +365,11 @@ int tk_udp_close(tk_UDPsocket* sk)
     {
         if (sk->id != INVALID_SOCKET)
         {
+#ifdef _WIN32
             closesocket(sk->id);
+#else
+	    close(sk->id);
+#endif
         }
         free(sk);
     }

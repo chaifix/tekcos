@@ -1,15 +1,20 @@
 #ifndef _TEKCOS_H
 #define _TEKCOS_H
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <WS2tcpip.h>
 #include <winsock.h>
+#else 
+#include <sys/socket.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <netinet/in.h>
 #endif
 
 #define TK_VERSION "0.1.0"
 
-typedef unsigned __int32 uint32;
-typedef unsigned __int16 uint16;
+typedef unsigned int uint32;
+typedef unsigned short uint16;
 
 #ifdef _WIN32
 // neccessary for windows 
@@ -34,6 +39,9 @@ const char* tk_hltostr(uint32 ip);  // host long to string
 * protocol = IPPROTO_TCP
 */
 
+#ifdef __linux__
+typedef unsigned int SOCKET; 
+#endif
 // TCP socket structrue. 
 typedef struct
 {

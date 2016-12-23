@@ -2,8 +2,9 @@
 #include <stdio.h>
 int main()
 {
+#ifdef _WIN32
     tk_init(); 
-
+#endif
     tk_UDPsocket* sk = tk_udp_open(6666);
     tk_UDPpack p;
     tk_UDPpack confirm;

@@ -2,8 +2,9 @@
 #include <stdio.h>
 int main()
 {   
+#ifdef _WIN32
     tk_init();
-
+#endif
     tk_TCPsocket* sk;
     tk_IPaddress ip = {
         0,

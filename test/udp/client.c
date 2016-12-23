@@ -1,9 +1,11 @@
-#include "tekcos.h"
+#include "../../tekcos.h"
 #include <stdio.h>
 
 int main()
 {
-    tk_init(); 
+#ifdef _WIN32
+    tk_init();
+#endif 
     tk_UDPsocket* sk = tk_udp_open(7777); 
     const char* str = "hello, tekcos\n";
     tk_UDPpack pack = {
